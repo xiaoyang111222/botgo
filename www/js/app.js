@@ -8,6 +8,9 @@ import { runAgent, setOnStepSave } from './agent.js';
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
+const APP_VERSION = '1.3.0';
+const UPDATE_API = 'https://api.github.com/repos/xiaoyang111222/botgo/releases/latest';
+
 let cfg = loadConfig();
 let session = null;
 let running = null; // AbortController
@@ -425,6 +428,38 @@ $('#exportBtn').addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 });
 
+// ---------- 检查更新（查 GitHub Releases） ----------
+let updateUrl = '';
+function cmpVer(a, b) {
+  const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) { const d = (pa[i] || 0) - (pb[i] || 0); if (d) return d; }
+  return 0;
+}
+async function checkUpdate(manual) {
+  const msg = $('#updateMsg'); const go = $('#updateGo');
+  if (manual) { msg.textContent = '正在检查…'; go.classList.add('hidden'); }
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 15000);
+    const res = await fetch(UPDATE_API, { headers: { accept: 'application/vnd.github+json' }, signal: ctl.signal });
+    clearTimeout(t);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const j = await res.json();
+    const latest = String(j.tag_name || '').replace(/^v/, '');
+    if (latest && cmpVer(latest, APP_VERSION) > 0) {
+      updateUrl = j.html_url || '';
+      msg.textContent = '发现新版 v' + latest + '（当前 v' + APP_VERSION + '），点「去下载」打开下载页，装好直接覆盖升级。';
+      go.classList.remove('hidden');
+    } else {
+      msg.textContent = '当前版本 v' + APP_VERSION + (manual ? '，已是最新版。' : '');
+    }
+  } catch (e) {
+    if (manual) msg.textContent = '检查失败（当前 v' + APP_VERSION + '）：网络不通或 GitHub 暂时不可用，稍后再试。';
+  }
+}
+$('#updateBtn').addEventListener('click', () => checkUpdate(true));
+$('#updateGo').addEventListener('click', () => { if (updateUrl) window.open(updateUrl, '_blank'); });
+
 function refreshStorageInfo() {
   const u = storageUsage();
   const kb = Math.round(u.chars / 1024);
@@ -562,4 +597,6 @@ $('#sfCancel').addEventListener('click', () => { editingSkillDir = null; $('#ski
   renderSessions();
   renderMessages();
   refreshTopbar();
+  $('#updateMsg').textContent = '当前版本 v' + APP_VERSION;
+  checkUpdate(false);
 })();

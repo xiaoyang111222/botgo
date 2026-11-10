@@ -37,7 +37,7 @@ anchor = '        release {\n            minifyEnabled false'
 assert anchor in text
 text = text.replace(anchor, '        release {\n            signingConfig signingConfigs.release\n            minifyEnabled false', 1)
 
-text = text.replace('versionCode 1', 'versionCode 11')
-text = text.replace('versionName "1.0"', 'versionName "1.2.0"')
+text = text.replace('versionCode 1', 'versionCode 12')
+text = text.replace('versionName "1.0"', 'versionName "1.3.0"')
 open(path, 'w', encoding='utf-8').write(text)
 print('release 签名补丁已应用：', path)
