@@ -1,0 +1,1 @@
+{"appId":"app.agentshell.solo","appName":"Agent Shell","plugins":{"CapacitorHttp":{"enabled":true}},"server":{"androidScheme":"https"},"webDir":"www"}

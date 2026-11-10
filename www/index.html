@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Agent Shell 独立版</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --panel2:#1e222c; --line:#2a2f3a; --text:#e8eaf0; --dim:#9aa3b2; --acc:#4f8cff; --acc2:#2b5cb8; --danger:#e5534b; --ok:#3fb950; --radius:14px; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; background:var(--bg); color:var(--text); font:15px/1.55 -apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif; }
+  button { font:inherit; color:inherit; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:7px 12px; cursor:pointer; }
+  button:active { transform:scale(.98); }
+  button.primary { background:var(--acc2); border-color:var(--acc2); color:#fff; }
+  button.danger { background:transparent; border-color:var(--danger); color:var(--danger); }
+  button.ghost { background:transparent; }
+  button:disabled { opacity:.45; }
+  input,select,textarea { font:inherit; color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:9px 11px; width:100%; }
+  textarea { resize:vertical; }
+  label { display:block; font-size:13px; color:var(--dim); margin:12px 0 5px; }
+  .small { font-size:12.5px; color:var(--dim); }
+  /* 顶栏 */
+  #topbar { position:fixed; inset:0 0 auto 0; height:calc(54px + env(safe-area-inset-top)); display:flex; align-items:center; gap:8px; padding:env(safe-area-inset-top) 10px 0; background:rgba(15,17,21,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); z-index:30; }
+  #topbar .iconbtn { width:38px; height:38px; padding:0; display:grid; place-items:center; font-size:18px; border-radius:10px; }
+  #botSwitch { flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; padding:4px 10px; height:42px; }
+  #botSwitch b { font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  #botSwitch span { font-size:11px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  /* 聊天区 */
+  #chatView { padding:calc(64px + env(safe-area-inset-top)) 0 calc(86px + env(safe-area-inset-bottom)); height:100%; overflow-y:auto; }
+  #messages { max-width:820px; margin:0 auto; padding:0 12px; display:flex; flex-direction:column; gap:10px; }
+  .msg { max-width:88%; padding:10px 13px; border-radius:var(--radius); white-space:pre-wrap; word-break:break-word; }
+  .msg.user { align-self:flex-end; background:var(--acc2); color:#fff; border-bottom-right-radius:4px; }
+  .msg.assistant { align-self:flex-start; background:var(--panel); border:1px solid var(--line); border-bottom-left-radius:4px; }
+  .msg.notice { align-self:center; background:transparent; color:var(--dim); font-size:13px; padding:2px 8px; }
+  .toolchip { align-self:flex-start; max-width:92%; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:7px 10px; font-size:13px; }
+  .toolchip .tname { color:var(--acc); font-weight:600; }
+  .toolchip pre { margin:6px 0 0; white-space:pre-wrap; word-break:break-word; color:var(--dim); font-size:12px; max-height:180px; overflow:auto; }
+  .usage { align-self:flex-start; font-size:11px; color:var(--dim); padding:0 4px; }
+  .msg.assistant .code { background:#0b0e13; border:1px solid var(--line); border-radius:8px; padding:8px 10px; overflow-x:auto; font:12.5px/1.5 ui-monospace,Menlo,monospace; white-space:pre; margin:6px 0; }
+  .msg.assistant code { background:#262b36; border-radius:5px; padding:1px 5px; font-family:ui-monospace,Menlo,monospace; font-size:.92em; }
+  .msg.assistant .code code { background:transparent; padding:0; }
+  .msg.assistant .mdh { font-weight:700; margin:6px 0 2px; }
+  .msg.assistant .mdli { padding-left:16px; text-indent:-12px; margin:1px 0; }
+  .msg.assistant .mdsp { height:8px; }
+  .msg.assistant a { color:var(--acc); }
+  /* 开盒引导卡 */
+  #onboard { max-width:820px; margin:0 auto 6px; padding:0 12px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px; }
+  .card h2 { margin:0 0 6px; font-size:18px; }
+  .card ol { margin:8px 0; padding-left:22px; }
+  /* 输入区 */
+  #composer { position:fixed; inset:auto 0 0 0; background:rgba(15,17,21,.94); backdrop-filter:blur(8px); border-top:1px solid var(--line); padding:10px 10px calc(10px + env(safe-area-inset-bottom)); z-index:30; }
+  #composer .row { max-width:820px; margin:0 auto; display:flex; gap:8px; align-items:flex-end; }
+  #input { flex:1; max-height:130px; border-radius:12px; }
+  #sendBtn { height:42px; padding:0 18px; }
+  /* 抽屉与面板 */
+  .scrim { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:40; }
+  .drawer { position:fixed; top:0; bottom:0; left:0; width:min(320px,86vw); background:var(--panel); z-index:50; padding:calc(14px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom)); overflow-y:auto; transform:translateX(-105%); transition:transform .22s ease; }
+  .drawer.open { transform:none; }
+  .sheet { position:fixed; inset:0; background:var(--bg); z-index:50; overflow-y:auto; padding:calc(14px + env(safe-area-inset-top)) 14px calc(40px + env(safe-area-inset-bottom)); display:none; }
+  .sheet.open { display:block; }
+  .sheet .inner { max-width:720px; margin:0 auto; }
+  .sheet header { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+  .sheet header h2 { margin:0; font-size:19px; flex:1; }
+  .item { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:12px; margin:10px 0; }
+  .item .head { display:flex; align-items:center; gap:8px; }
+  .item .head b { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag { font-size:11px; color:#fff; background:var(--acc2); border-radius:6px; padding:1px 6px; }
+  .tag.off { background:#555; }
+  .rowbtns { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .sess { display:flex; align-items:center; gap:8px; padding:11px 10px; border-radius:10px; cursor:pointer; }
+  .sess:active,.sess.cur { background:var(--panel2); }
+  .sess .t { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hidden { display:none !important; }
+  .menu { position:fixed; z-index:60; background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:6px; min-width:180px; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+  .menu button { display:block; width:100%; text-align:left; border:none; background:transparent; padding:9px 10px; border-radius:8px; }
+  .menu button:active { background:var(--panel); }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <button class="iconbtn" id="menuBtn" title="会话列表">☰</button>
+  <button id="botSwitch" title="切换 bot"><b id="curBotName">小助手</b><span id="curModelLabel">未配置模型</span></button>
+  <button class="iconbtn" id="newBtn" title="新会话">＋</button>
+  <button class="iconbtn" id="moreBtn" title="更多">⋯</button>
+</div>
+
+<div id="chatView">
+  <div id="onboard" class="hidden">
+    <div class="card">
+      <h2>欢迎使用 Agent Shell 独立版</h2>
+      <div>全部数据只存在这台手机里，没有服务器。开始前只要一步：填入你自己的模型 API key。</div>
+      <ol>
+        <li>选一个提供方（DeepSeek、EXAONE、OpenAI、Claude 等，预设都备好了）</li>
+        <li>粘贴你的 API key，点「获取模型」确认连通</li>
+        <li>回来直接开聊——多 bot、长期记忆、技能都已就位</li>
+      </ol>
+      <button class="primary" id="onboardGo">去配置模型 →</button>
+    </div>
+  </div>
+  <div id="messages"></div>
+</div>
+
+<div id="composer">
+  <div class="row">
+    <textarea id="input" rows="1" placeholder="说点什么…"></textarea>
+    <button id="sendBtn" class="primary">发送</button>
+    <button id="stopBtn" class="danger hidden">停止</button>
+  </div>
+</div>
+
+<div id="scrim" class="scrim hidden"></div>
+<aside id="drawer" class="drawer">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><b style="flex:1">会话</b><button id="drawerNew">＋ 新会话</button></div>
+  <div id="sessList"></div>
+</aside>
+
+<section id="settingsSheet" class="sheet"><div class="inner">
+  <header><h2>设置 · 模型提供方</h2><button class="closeSheet">完成</button></header>
+  <div class="small">key 只保存在本机。每个提供方选一个预设再填 key 即可；「获取模型」能拉到列表说明连接和 key 都没问题。</div>
+  <div id="providerList"></div>
+  <div class="item">
+    <b id="provFormTitle">添加提供方</b>
+    <label>预设</label><select id="pfPreset"></select>
+    <div class="small" id="pfKeyHint"></div>
+    <label>名称</label><input id="pfName" placeholder="如 DeepSeek">
+    <label>类型</label><select id="pfType"><option value="openai">OpenAI 兼容</option><option value="anthropic">Anthropic</option></select>
+    <label>接口地址 baseURL</label><input id="pfBase" placeholder="https://api.deepseek.com/v1">
+    <label>API key</label><input id="pfKey" type="password" placeholder="sk-…" autocomplete="off">
+    <label>模型（逗号分隔，可用下方按钮自动获取）</label><input id="pfModels" placeholder="deepseek-chat">
+    <div class="rowbtns">
+      <button id="pfFetchModels">获取模型</button>
+      <button id="pfSave" class="primary">保存提供方</button>
+      <button id="pfCancel" class="ghost hidden">取消编辑</button>
+    </div>
+    <div class="small" id="pfMsg"></div>
+  </div>
+  <div class="item">
+    <b>全局默认</b>
+    <label>默认提供方</label><select id="defProvider"></select>
+    <label>默认模型</label><select id="defModel"></select>
+    <label>每轮最大步数（工具调用轮数）</label><input id="maxSteps" type="number" min="1" max="40">
+  </div>
+  <div class="item">
+    <b>数据</b>
+    <div class="small" style="margin-top:6px">导出包含配置（含 key）、全部会话、记忆、bot 与技能，请妥善保存导出文件。导入会覆盖当前全部数据（换机/重装正式版时用）。</div>
+    <div class="small" id="storageInfo" style="margin-top:6px"></div>
+    <div class="rowbtns"><button id="exportBtn">导出全部数据（JSON）</button><button id="importBtn">导入备份恢复</button></div>
+    <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+  </div>
+</div></section>
+
+<section id="botsSheet" class="sheet"><div class="inner">
+  <header><h2>团队 · Bots</h2><button class="closeSheet">完成</button></header>
+  <div class="small">每个 bot 有自己的人设、模型和长期记忆。主 bot 可以用 delegate_task 把子任务派给其他 bot。</div>
+  <div id="botList"></div>
+  <div class="item">
+    <b id="botFormTitle">添加 bot</b>
+    <label>名字</label><input id="bfName" placeholder="如 研究员">
+    <label>专长描述（给其他 bot 看它擅长什么）</label><input id="bfDesc" placeholder="如 查资料、做调研">
+    <label>人设（系统提示的一部分）</label><textarea id="bfPersona" rows="4" placeholder="如 你是一名严谨的研究员…"></textarea>
+    <label>提供方（留空＝用全局默认）</label><select id="bfProvider"></select>
+    <label>模型（留空＝用提供方第一个/全局默认）</label><input id="bfModel" placeholder="可留空">
+    <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="bfEnabled" checked style="width:auto"> 启用</label>
+    <div class="rowbtns">
+      <button id="bfSave" class="primary">保存 bot</button>
+      <button id="bfCancel" class="ghost hidden">取消编辑</button>
+    </div>
+  </div>
+  <div class="item" id="memoryBox">
+    <b>长期记忆</b>
+    <label>选择 bot</label><select id="memBot"></select>
+    <textarea id="memText" rows="7" placeholder="（暂无记忆）"></textarea>
+    <div class="rowbtns"><button id="memSave">保存记忆</button></div>
+  </div>
+</div></section>
+
+<section id="skillsSheet" class="sheet"><div class="inner">
+  <header><h2>技能 · Skills</h2><button class="closeSheet">完成</button></header>
+  <div class="small">技能是一段操作说明：用户的话命中触发词时自动生效，模型也可以用 use_skill 工具按需读取。</div>
+  <div id="skillList"></div>
+  <div class="item">
+    <b id="skillFormTitle">添加技能</b>
+    <label>技能名</label><input id="sfName" placeholder="如 网页总结">
+    <label>用途描述</label><input id="sfDesc" placeholder="一句话说明">
+    <label>触发词（逗号分隔）</label><input id="sfTriggers" placeholder="如 总结网页, 读一下">
+    <label>正文说明</label><textarea id="sfBody" rows="7" placeholder="写清步骤与要求，模型会照着执行"></textarea>
+    <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="sfEnabled" checked style="width:auto"> 启用</label>
+    <div class="rowbtns">
+      <button id="sfSave" class="primary">保存技能</button>
+      <button id="sfCancel" class="ghost hidden">取消编辑</button>
+    </div>
+  </div>
+</div></section>
+
+<div id="botMenu" class="menu hidden"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
