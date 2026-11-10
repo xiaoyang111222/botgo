@@ -13,6 +13,9 @@ npx cap sync
 cp android-overrides/styles.xml android/app/src/main/res/values/styles.xml
 cp -r android-overrides/res/mipmap-* android/app/src/main/res/
 cp android-overrides/res/values/ic_launcher_background.xml android/app/src/main/res/values/ic_launcher_background.xml
+# 语音输入需要录音权限（cap 生成的清单里没有，补上；幂等）
+MANIFEST=android/app/src/main/AndroidManifest.xml
+grep -q "RECORD_AUDIO" "$MANIFEST" || sed -i 's#</manifest>#    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n</manifest>#' "$MANIFEST"
 echo "sdk.dir=$HOME/android-sdk" > android/local.properties
 if [ "$FLAVOR" = "release" ]; then
   PROPS="${KEYSTORE_PROPS:-$HOME/signing/keystore.properties}"

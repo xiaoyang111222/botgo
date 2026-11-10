@@ -8,7 +8,7 @@ import { runAgent, setOnStepSave } from './agent.js';
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
 
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 const UPDATE_API = 'https://api.github.com/repos/xiaoyang111222/botgo/releases/latest';
 
 let cfg = loadConfig();
@@ -148,11 +148,68 @@ $('#sendBtn').addEventListener('click', send);
 $('#stopBtn').addEventListener('click', () => running?.abort(new Error('用户停止了本轮')));
 $('#input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
 
+// ---------- 语音输入（录音 → 转写接口 → 填输入框） ----------
+let mediaRecorder = null, audioChunks = [], recording = false;
+function updateMicBtn() { const b = $('#micBtn'); b.textContent = recording ? '⏹' : '🎤'; b.classList.toggle('danger', recording); b.title = recording ? '结束录音' : '语音输入'; }
+async function transcribe(blob) {
+  const stt = cfg.stt || {};
+  toast('转写中…');
+  try {
+    const fd = new FormData();
+    fd.append('file', blob, 'audio.webm');
+    fd.append('model', stt.model || 'whisper-1');
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 60000);
+    const res = await fetch((stt.baseURL || 'https://api.openai.com/v1').replace(/\/+$/, '') + '/audio/transcriptions', {
+      method: 'POST', headers: { authorization: 'Bearer ' + stt.apiKey }, body: fd, signal: ctl.signal,
+    });
+    clearTimeout(t);
+    if (!res.ok) throw new Error('模型接口 ' + res.status);
+    const j = await res.json();
+    const text = String(j.text || '').trim();
+    if (!text) { toast('没听清，再试一次'); return; }
+    const inp = $('#input');
+    inp.value = (inp.value ? inp.value.replace(/\s+$/, '') + ' ' : '') + text;
+    inp.focus();
+  } catch (e) { toast('转写失败：' + friendlyError(e, { name: '转写接口' })); }
+}
+async function toggleRecord() {
+  if (recording) { mediaRecorder?.stop(); return; }
+  if (!cfg.stt?.apiKey) { toast('先在设置 → 语音输入里填转写接口的 key'); openSheet('#settingsSheet'); return; }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch (e) { toast('拿不到麦克风：请在系统设置里允许本应用录音后重试'); return; }
+  audioChunks = [];
+  mediaRecorder = new MediaRecorder(stream);
+  mediaRecorder.ondataavailable = (e) => { if (e.data?.size) audioChunks.push(e.data); };
+  mediaRecorder.onstop = () => {
+    stream.getTracks().forEach(tr => tr.stop());
+    recording = false; updateMicBtn();
+    const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+    if (blob.size) transcribe(blob);
+  };
+  mediaRecorder.start();
+  recording = true; updateMicBtn();
+  toast('录音中，再点 ⏹ 结束');
+}
+$('#micBtn').addEventListener('click', toggleRecord);
+
 // ---------- 会话抽屉 ----------
+function sessionMatches(s, q) {
+  if ((s.title || '').toLowerCase().includes(q)) return true;
+  const bot = getBot(s.botId);
+  if (bot && bot.name.toLowerCase().includes(q)) return true;
+  const full = loadSession(s.id);
+  if (!full) return false;
+  return (full.messages || []).some(m => typeof m.content === 'string' && m.content.toLowerCase().includes(q));
+}
 function renderSessions() {
   const list = $('#sessList');
   list.innerHTML = '';
-  for (const s of listSessionIndex()) {
+  const q = ($('#sessSearch').value || '').trim().toLowerCase();
+  const idx = listSessionIndex().filter(s => !q || sessionMatches(s, q));
+  if (!idx.length) list.appendChild(el('div', 'small', q ? '没有匹配的会话' : '还没有会话'));
+  for (const s of idx) {
     const row = el('div', 'sess' + (session && s.id === session.id ? ' cur' : ''));
     row.appendChild(el('span', 't', s.title || '新会话'));
     const bot = getBot(s.botId);
@@ -197,6 +254,7 @@ function newSession(botId) {
   saveSession(session);
   renderSessions(); renderMessages(); refreshTopbar();
 }
+$('#sessSearch').addEventListener('input', renderSessions);
 function openDrawer() { $('#drawer').classList.add('open'); $('#scrim').classList.remove('hidden'); }
 function closeDrawer() { $('#drawer').classList.remove('open'); $('#scrim').classList.add('hidden'); }
 $('#menuBtn').addEventListener('click', openDrawer);
@@ -393,7 +451,13 @@ function renderGlobalDefaults() {
   for (const m of prov?.models || []) { const o = el('option', '', m); o.value = m; dm.appendChild(o); }
   dm.value = cfg.defaultModel || '';
   $('#maxSteps').value = cfg.maxSteps || 12;
+  $('#sttBase').value = cfg.stt?.baseURL || '';
+  $('#sttKey').value = cfg.stt?.apiKey || '';
+  $('#sttModel').value = cfg.stt?.model || '';
   renderBotProviderOptions();
+}
+for (const [sel, key] of [['#sttBase', 'baseURL'], ['#sttKey', 'apiKey'], ['#sttModel', 'model']]) {
+  $(sel).addEventListener('change', () => { cfg.stt = cfg.stt || {}; cfg.stt[key] = $(sel).value.trim(); saveConfig(cfg); });
 }
 $('#defProvider').addEventListener('change', () => {
   cfg.defaultProvider = $('#defProvider').value;

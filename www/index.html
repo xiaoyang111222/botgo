@@ -103,6 +103,7 @@
 
 <div id="composer">
   <div class="row">
+    <button id="micBtn" title="语音输入">🎤</button>
     <textarea id="input" rows="1" placeholder="说点什么…"></textarea>
     <button id="sendBtn" class="primary">发送</button>
     <button id="stopBtn" class="danger hidden">停止</button>
@@ -112,6 +113,7 @@
 <div id="scrim" class="scrim hidden"></div>
 <aside id="drawer" class="drawer">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><b style="flex:1">会话</b><button id="drawerNew">＋ 新会话</button></div>
+  <input id="sessSearch" type="search" placeholder="搜索会话（标题或内容）…" style="width:100%;margin-bottom:10px">
   <div id="sessList"></div>
 </aside>
 
@@ -140,6 +142,13 @@
     <label>默认提供方</label><select id="defProvider"></select>
     <label>默认模型</label><select id="defModel"></select>
     <label>每轮最大步数（工具调用轮数）</label><input id="maxSteps" type="number" min="1" max="40">
+  </div>
+  <div class="item">
+    <b>语音输入</b>
+    <div class="small" style="margin-top:6px">点聊天框旁的 🎤 录音，转成文字后填进输入框。用的是兼容 OpenAI 转写接口（/audio/transcriptions）的服务：OpenAI 填默认即可（模型 whisper-1）；硅基流动填 https://api.siliconflow.cn/v1、模型 FunAudioLLM/SenseVoiceSmall。key 只存本机。</div>
+    <label>转写接口地址</label><input id="sttBase" placeholder="https://api.openai.com/v1">
+    <label>转写 API key</label><input id="sttKey" type="password" placeholder="sk-…" autocomplete="off">
+    <label>转写模型</label><input id="sttModel" placeholder="whisper-1">
   </div>
   <div class="item">
     <b>数据</b>
