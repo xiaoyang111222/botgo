@@ -1,0 +1,16 @@
+# 依赖与构建产物
+node_modules/
+android/
+*.apk
+*.aab
+
+# 签名与密钥（绝不入库）
+*.keystore
+*.jks
+keystore.properties
+signing/
+
+# 本地杂项
+.DS_Store
+*.log
+.env
