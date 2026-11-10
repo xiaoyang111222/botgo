@@ -6,6 +6,13 @@
 
 > **商业授权：** 本项目采用 CC BY-NC 4.0，个人学习、个人使用可免费；**商业使用（付费产品、付费 App、机构收费服务等）需单独授权**，请通过 X 私信 [@hassanyehiaa](https://x.com/hassanyehiaa)、邮箱 [499749204@qq.com](mailto:499749204@qq.com) 或在本仓库 [提交 Issue](https://github.com/xiaoyang111222/botgo/issues) 联系，条款见文末「许可证 / License」。
 
+## 界面一览
+
+<p>
+<img src="docs/images/showcase-guide.png" width="300" alt="开盒引导：一分钟上手">
+<img src="docs/images/showcase-chat.png" width="300" alt="聊天界面：工具调用与长期记忆">
+</p>
+
 ## 为什么做这个
 
 现在市面上的 AI 助手 App，几乎都是同一个模式：你的对话先发到厂商的服务器，在那边转一圈再回来。这个模式有三个绕不开的问题：
